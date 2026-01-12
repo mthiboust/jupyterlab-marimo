@@ -2,6 +2,8 @@
 
 A JupyterLab extension that automatically opens Marimo notebooks in the Marimo editor instead of the default text editor or notebook interface.
 
+![JupyterLab Marimo Extension](docs/jupyterlab_marimo.png)
+
 ## Features
 
 - **Automatic File Type Registration**: Registers `.mo.py` files as a custom file type in JupyterLab
