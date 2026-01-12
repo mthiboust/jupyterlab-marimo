@@ -1,0 +1,56 @@
+/**
+ * Styles for the Marimo JupyterLab extension
+ */
+
+.marimo-editor-widget {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--jp-layout-color0);
+}
+
+.marimo-iframe {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    border: none;
+    background-color: white;
+}
+
+.marimo-error-message {
+    padding: 20px;
+    margin: 20px;
+    background-color: var(--jp-error-color3);
+    border: 2px solid var(--jp-error-color1);
+    border-radius: 4px;
+    color: var(--jp-ui-font-color0);
+    font-family: var(--jp-ui-font-family);
+    font-size: var(--jp-ui-font-size1);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    max-width: 800px;
+}
+
+.marimo-document-widget {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Loading state */
+.marimo-editor-widget.loading::after {
+    content: "Loading Marimo editor...";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 16px;
+    color: var(--jp-ui-font-color1);
+}
+
+/* Ensure proper sizing in different layouts */
+.jp-MainAreaWidget .marimo-editor-widget {
+    min-height: 0;
+    flex: 1;
+}

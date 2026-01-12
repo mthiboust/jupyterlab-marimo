@@ -1,0 +1,56 @@
+# Node
+node_modules/
+.yarn/*
+
+# Build outputs
+lib/
+*.tsbuildinfo
+
+# JupyterLab extension build
+jupyterlab_marimo/_version.py
+jupyterlab_marimo/labextension/*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.cache/
+.eslintcache
+.stylelintcache
+
+# PyPI credentials (NEVER commit this!)
+.pypirc
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+.virtual_documents/
