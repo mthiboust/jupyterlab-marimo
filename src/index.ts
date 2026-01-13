@@ -39,8 +39,9 @@ function isJupyterLabDarkTheme(): boolean {
 }
 
 /**
- * Apply theme classes to an iframe's body element.
- * Marimo uses 'light', 'light-theme', 'dark', 'dark-theme' classes.
+ * Apply theme to an iframe by setting the data-vscode-theme-kind attribute.
+ * Marimo has built-in support for VS Code theme detection via this attribute,
+ * which takes precedence over user config settings.
  */
 function applyThemeToIframe(
   iframe: HTMLIFrameElement,
@@ -52,17 +53,11 @@ function applyThemeToIframe(
       return false;
     }
 
-    const body = iframeDoc.body;
-    const newTheme = isDark ? "dark" : "light";
-    const oldTheme = isDark ? "light" : "dark";
-
-    // Remove old theme classes and add new ones
-    body.classList.remove(oldTheme, `${oldTheme}-theme`);
-    body.classList.add(newTheme, `${newTheme}-theme`);
-
-    // Also set data attributes that marimo might check
-    body.dataset.theme = newTheme;
-    body.dataset.mode = newTheme;
+    // Set data-vscode-theme-kind attribute which marimo watches via MutationObserver
+    // This takes precedence over marimo's user config theme setting
+    iframeDoc.body.dataset.vscodeThemeKind = isDark
+      ? "vscode-dark"
+      : "vscode-light";
 
     return true;
   } catch (error) {
