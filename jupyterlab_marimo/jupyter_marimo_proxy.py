@@ -59,8 +59,11 @@ def setup_marimoserver():
             "Authorization": "Basic "
             + base64.b64encode(b" :" + token.encode()).decode()
         },
+        # Standalone Marimo launcher (opens in new browser tab)
+        # The main "Marimo Notebook" launcher in "Notebook" category is provided
+        # by the JupyterLab extension (creates .mo.py file in embedded editor)
         "launcher_entry": {
-            "title": "Marimo",
+            "title": "Marimo (standalone)",
             "icon_path": os.path.join(
                 os.path.dirname(os.path.abspath(__file__)), "icon.svg"
             ),
