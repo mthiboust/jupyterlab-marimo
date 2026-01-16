@@ -3,6 +3,8 @@ import {
   JupyterFrontEndPlugin,
 } from "@jupyterlab/application";
 
+import { Notification } from "@jupyterlab/apputils";
+
 import {
   IDocumentWidget,
   DocumentRegistry,
@@ -13,6 +15,8 @@ import {
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
 
 import { ServerConnection } from "@jupyterlab/services";
+
+import { URLExt } from "@jupyterlab/coreutils";
 
 import { Widget } from "@lumino/widgets";
 
@@ -28,6 +32,7 @@ import marimoIconSvgStr from "../style/marimo-icon.svg";
 const MARIMO_MIME_TYPE = "text/x-python";
 const MARIMO_FILE_EXTENSION = ".mo.py";
 const PYTHON_FILE_EXTENSION = ".py";
+const JUPYTER_FILE_EXTENSION = ".ipynb";
 
 /**
  * Detect if JupyterLab is currently in dark mode.
@@ -75,6 +80,51 @@ const marimoIcon = new LabIcon({
   name: "marimo:icon",
   svgstr: marimoIconSvgStr,
 });
+
+/**
+ * Response from the conversion endpoint.
+ */
+interface ConversionResponse {
+  success: boolean;
+  outputPath?: string;
+  error?: string;
+  message?: string;
+}
+
+/**
+ * Convert a file between Jupyter and Marimo formats.
+ *
+ * @param sourcePath - The path to the file to convert.
+ * @param direction - The conversion direction: 'to_marimo' or 'from_marimo'.
+ * @returns A promise that resolves to the conversion response.
+ */
+async function convertFile(
+  sourcePath: string,
+  direction: "to_marimo" | "from_marimo",
+): Promise<ConversionResponse> {
+  const settings = ServerConnection.makeSettings();
+  const requestUrl = URLExt.join(
+    settings.baseUrl,
+    "jupyterlab-marimo",
+    "convert",
+  );
+
+  const response = await ServerConnection.makeRequest(
+    requestUrl,
+    {
+      method: "POST",
+      body: JSON.stringify({ sourcePath, direction }),
+    },
+    settings,
+  );
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Server error: ${response.status} - ${errorText}`);
+  }
+
+  return response.json() as Promise<ConversionResponse>;
+}
 
 /**
  * A widget for displaying Marimo editor in an iframe.
@@ -420,14 +470,138 @@ const plugin: JupyterFrontEndPlugin<void> = {
       rank: 0,
     });
 
-    // Add context menu item for .py files
+// Add context menu item for .py files
     app.contextMenu.addItem({
       command: "marimo:open",
       selector: '.jp-DirListing-item[data-file-type="python-marimo"]',
       rank: 0,
     });
 
-    console.log("Marimo context menu items added");
+    // Command: Convert Jupyter notebook to Marimo
+    app.commands.addCommand("marimo:convert-to-marimo", {
+      label: "Convert to Marimo Notebook",
+      caption: "Convert this Jupyter notebook to Marimo format (.mo.py)",
+      isVisible: () => {
+        const widget = browserFactory.tracker.currentWidget;
+        if (!widget) {
+          return false;
+        }
+        const selectedItems = Array.from(widget.selectedItems());
+        return (
+          selectedItems.length === 1 &&
+          selectedItems[0].path.endsWith(JUPYTER_FILE_EXTENSION)
+        );
+      },
+      execute: async () => {
+        const widget = browserFactory.tracker.currentWidget;
+        if (!widget) {
+          return;
+        }
+        const selectedItems = Array.from(widget.selectedItems());
+        if (
+          selectedItems.length !== 1 ||
+          !selectedItems[0].path.endsWith(JUPYTER_FILE_EXTENSION)
+        ) {
+          return;
+        }
+
+        const sourcePath = selectedItems[0].path;
+
+        try {
+          const result = await convertFile(sourcePath, "to_marimo");
+
+          if (result.success) {
+            Notification.success(
+              `Converted to: ${result.outputPath}${result.message ? ` (${result.message})` : ""}`,
+              { autoClose: 5000 },
+            );
+            // Refresh the file browser to show the new file
+            await widget.model.refresh();
+          } else {
+            Notification.error(`Conversion failed: ${result.error}`, {
+              autoClose: 10000,
+            });
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error("Failed to convert to Marimo:", errorMessage);
+          Notification.error(`Failed to convert: ${errorMessage}`, {
+            autoClose: 10000,
+          });
+        }
+      },
+    });
+
+    // Command: Convert Marimo notebook to Jupyter
+    app.commands.addCommand("marimo:convert-from-marimo", {
+      label: "Convert to Jupyter Notebook",
+      caption: "Convert this Marimo notebook to Jupyter format (.ipynb)",
+      isVisible: () => {
+        const widget = browserFactory.tracker.currentWidget;
+        if (!widget) {
+          return false;
+        }
+        const selectedItems = Array.from(widget.selectedItems());
+        return (
+          selectedItems.length === 1 &&
+          selectedItems[0].path.endsWith(MARIMO_FILE_EXTENSION)
+        );
+      },
+      execute: async () => {
+        const widget = browserFactory.tracker.currentWidget;
+        if (!widget) {
+          return;
+        }
+        const selectedItems = Array.from(widget.selectedItems());
+        if (
+          selectedItems.length !== 1 ||
+          !selectedItems[0].path.endsWith(MARIMO_FILE_EXTENSION)
+        ) {
+          return;
+        }
+
+        const sourcePath = selectedItems[0].path;
+
+        try {
+          const result = await convertFile(sourcePath, "from_marimo");
+
+          if (result.success) {
+            Notification.success(
+              `Converted to: ${result.outputPath}${result.message ? ` (${result.message})` : ""}`,
+              { autoClose: 5000 },
+            );
+            // Refresh the file browser to show the new file
+            await widget.model.refresh();
+          } else {
+            Notification.error(`Conversion failed: ${result.error}`, {
+              autoClose: 10000,
+            });
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error("Failed to convert from Marimo:", errorMessage);
+          Notification.error(`Failed to convert: ${errorMessage}`, {
+            autoClose: 10000,
+          });
+        }
+      },
+    });
+
+    // Context menu: Convert Jupyter notebook to Marimo
+    app.contextMenu.addItem({
+      command: "marimo:convert-to-marimo",
+      selector: '.jp-DirListing-item[data-file-type="notebook"]',
+      rank: 10,
+    });
+
+    // Context menu: Convert Marimo notebook to Jupyter
+    app.contextMenu.addItem({
+      command: "marimo:convert-from-marimo",
+      selector: '.jp-DirListing-item[data-file-type="marimo"]',
+      rank: 10,
+    });
   },
 };
 
