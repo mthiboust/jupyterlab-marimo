@@ -12,6 +12,8 @@ import {
 
 import { IFileBrowserFactory } from "@jupyterlab/filebrowser";
 
+import { ILauncher } from "@jupyterlab/launcher";
+
 import { ServerConnection } from "@jupyterlab/services";
 
 import { Widget } from "@lumino/widgets";
@@ -21,6 +23,7 @@ import { Message } from "@lumino/messaging";
 import { pythonIcon, LabIcon } from "@jupyterlab/ui-components";
 
 import marimoIconSvgStr from "../style/marimo-icon.svg";
+import marimoLauncherIconSvgStr from "../style/marimo-launcher-icon.svg";
 
 /**
  * The MIME type for Marimo files.
@@ -343,6 +346,25 @@ const pythonMarimoFileType: Partial<DocumentRegistry.IFileType> = {
 };
 
 /**
+ * Default content for a new Marimo notebook.
+ * This creates a minimal valid marimo notebook structure.
+ */
+const DEFAULT_MARIMO_CONTENT = `import marimo
+
+app = marimo.App(width="medium")
+
+
+@app.cell
+def _():
+    import marimo as mo
+    return (mo,)
+
+
+if __name__ == "__main__":
+    app.run()
+`;
+
+/**
  * Initialization data for the jupyterlab-marimo extension.
  */
 const plugin: JupyterFrontEndPlugin<void> = {
@@ -351,10 +373,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
     "A JupyterLab extension to open Marimo files in an embbeded Marimo editor",
   autoStart: true,
   requires: [IFileBrowserFactory],
-  activate: (app: JupyterFrontEnd, browserFactory: IFileBrowserFactory) => {
+  optional: [ILauncher],
+  activate: (
+    app: JupyterFrontEnd,
+    browserFactory: IFileBrowserFactory,
+    launcher: ILauncher | null,
+  ) => {
     console.log("JupyterLab extension jupyterlab-marimo is activated!");
 
-    const { docRegistry } = app;
+    const { docRegistry, serviceManager } = app;
 
     // Add the Marimo file type for .mo.py files
     docRegistry.addFileType(marimoFileType as DocumentRegistry.IFileType);
@@ -377,7 +404,79 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     console.log("Marimo editor factory registered for .mo.py and .py files");
 
-    // Optional: Add a command to open files in Marimo
+    // Command to create a new Marimo notebook
+    app.commands.addCommand("marimo:create-new", {
+      label: "Marimo Notebook",
+      caption: "Create a new Marimo notebook",
+      icon: marimoIcon,
+      execute: async () => {
+        // Get the current working directory from the file browser
+        const cwd = browserFactory.tracker.currentWidget?.model.path ?? "";
+
+        // Generate a unique filename using a single directory listing
+        const contents = serviceManager.contents;
+        const baseFilename = "Untitled";
+        const extension = ".mo.py";
+
+        // Get existing files in the directory with a single API call
+        let existingNames: Set<string>;
+        try {
+          const dirModel = await contents.get(cwd || ".", { content: true });
+          if (dirModel.type === "directory" && dirModel.content) {
+            existingNames = new Set(
+              (dirModel.content as { name: string }[]).map((item) => item.name),
+            );
+          } else {
+            existingNames = new Set();
+          }
+        } catch {
+          // If directory listing fails, start with empty set
+          existingNames = new Set();
+        }
+
+        // Find first available filename
+        let filename = `${baseFilename}${extension}`;
+        let counter = 1;
+        while (existingNames.has(filename)) {
+          filename = `${baseFilename}${counter}${extension}`;
+          counter++;
+        }
+
+        const filePath = cwd ? `${cwd}/${filename}` : filename;
+
+        // Create the new file with default Marimo content
+        await contents.save(filePath, {
+          type: "file",
+          format: "text",
+          content: DEFAULT_MARIMO_CONTENT,
+        });
+
+        // Open the file with Marimo Editor
+        await app.commands.execute("docmanager:open", {
+          path: filePath,
+          factory: "Marimo Editor",
+        });
+
+        console.log(`Created and opened new Marimo notebook: ${filePath}`);
+      },
+    });
+
+    // Add to launcher if available
+    if (launcher) {
+      // Create a data URL from the marimo logo SVG for the launcher icon
+      // The launcher doesn't use the command's icon property - it needs kernelIconUrl
+      const iconDataUrl = `data:image/svg+xml,${encodeURIComponent(marimoLauncherIconSvgStr)}`;
+
+      launcher.add({
+        command: "marimo:create-new",
+        category: "Notebook",
+        rank: 2, // Place after Jupyter Notebook but before Console
+        kernelIconUrl: iconDataUrl,
+      });
+      console.log("Marimo launcher item added");
+    }
+
+    // Command to open existing files in Marimo
     app.commands.addCommand("marimo:open", {
       label: "Open in Marimo",
       caption: "Open the current file in Marimo editor",
