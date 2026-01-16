@@ -18,13 +18,63 @@ import { Widget } from "@lumino/widgets";
 
 import { Message } from "@lumino/messaging";
 
-import { pythonIcon } from "@jupyterlab/ui-components";
+import { pythonIcon, LabIcon } from "@jupyterlab/ui-components";
+
+import marimoIconSvgStr from "../style/marimo-icon.svg";
 
 /**
  * The MIME type for Marimo files.
  */
 const MARIMO_MIME_TYPE = "text/x-python";
 const MARIMO_FILE_EXTENSION = ".mo.py";
+const PYTHON_FILE_EXTENSION = ".py";
+
+/**
+ * Detect if JupyterLab is currently in dark mode.
+ * JupyterLab sets the data-jp-theme-light attribute on body to "true" or "false".
+ */
+function isJupyterLabDarkTheme(): boolean {
+  const themeLight = document.body.getAttribute("data-jp-theme-light");
+  return themeLight === "false";
+}
+
+/**
+ * Apply theme to an iframe by setting the data-vscode-theme-kind attribute.
+ * Marimo has built-in support for VS Code theme detection via this attribute,
+ * which takes precedence over user config settings.
+ */
+function applyThemeToIframe(
+  iframe: HTMLIFrameElement,
+  isDark: boolean,
+): boolean {
+  try {
+    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+    if (!iframeDoc || !iframeDoc.body) {
+      return false;
+    }
+
+    // Set data-vscode-theme-kind attribute which marimo watches via MutationObserver
+    // This takes precedence over marimo's user config theme setting
+    iframeDoc.body.dataset.vscodeThemeKind = isDark
+      ? "vscode-dark"
+      : "vscode-light";
+
+    return true;
+  } catch (error) {
+    // Cross-origin restriction - iframe not accessible
+    console.warn("Cannot access iframe document for theme sync:", error);
+    return false;
+  }
+}
+
+/**
+ * The Marimo icon for file browser and tabs.
+ * SVG is loaded from style/marimo-icon.svg
+ */
+const marimoIcon = new LabIcon({
+  name: "marimo:icon",
+  svgstr: marimoIconSvgStr,
+});
 
 /**
  * A widget for displaying Marimo editor in an iframe.
@@ -34,6 +84,8 @@ class MarimoEditorWidget extends Widget {
   private _iframe: HTMLIFrameElement;
   private _errorDiv: HTMLDivElement;
   private _marimoUrl: string | null = null;
+  private _themeObserver: MutationObserver | null = null;
+  private _currentThemeIsDark: boolean = false;
 
   constructor(context: DocumentRegistry.Context) {
     super();
@@ -41,7 +93,7 @@ class MarimoEditorWidget extends Widget {
     this.addClass("marimo-editor-widget");
     this.title.label = context.localPath;
     this.title.closable = true;
-    this.title.icon = pythonIcon;
+    this.title.icon = marimoIcon;
 
     // Create error message div (hidden by default)
     this._errorDiv = document.createElement("div");
@@ -57,8 +109,50 @@ class MarimoEditorWidget extends Widget {
     this._iframe.style.border = "none";
     this.node.appendChild(this._iframe);
 
+    // Initialize theme tracking
+    this._currentThemeIsDark = isJupyterLabDarkTheme();
+
     // Initialize the Marimo URL
     this._initializeMarimoUrl();
+
+    // Set up theme observer to watch for JupyterLab theme changes
+    this._setupThemeObserver();
+  }
+
+  /**
+   * Set up a MutationObserver to watch for JupyterLab theme changes.
+   * Watches for changes to data-jp-theme-light, data-jp-theme-name, and class attributes.
+   */
+  private _setupThemeObserver(): void {
+    this._themeObserver = new MutationObserver(() => {
+      const isDark = isJupyterLabDarkTheme();
+      if (isDark !== this._currentThemeIsDark) {
+        this._currentThemeIsDark = isDark;
+        this._syncThemeToIframe();
+      }
+    });
+
+    // Observe the body element for theme-related attribute changes
+    this._themeObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: [
+        "data-jp-theme-light",
+        "data-jp-theme-name",
+        "class",
+        "style",
+      ],
+    });
+  }
+
+  /**
+   * Synchronize the current JupyterLab theme to the marimo iframe.
+   */
+  private _syncThemeToIframe(): void {
+    if (applyThemeToIframe(this._iframe, this._currentThemeIsDark)) {
+      console.log(
+        `Synced theme to marimo iframe: ${this._currentThemeIsDark ? "dark" : "light"}`,
+      );
+    }
   }
 
   /**
@@ -104,9 +198,13 @@ class MarimoEditorWidget extends Widget {
 
       this._iframe.src = this._marimoUrl;
 
-      // Add load event listener to handle errors
+      // Add load event listener to sync theme and handle errors
       this._iframe.addEventListener("load", () => {
         console.log("Marimo iframe loaded successfully");
+        // Sync theme after iframe loads (with a small delay to ensure marimo is ready)
+        setTimeout(() => {
+          this._syncThemeToIframe();
+        }, 500);
       });
 
       this._iframe.addEventListener("error", (e) => {
@@ -181,6 +279,11 @@ class MarimoEditorWidget extends Widget {
     if (this.isDisposed) {
       return;
     }
+    // Clean up the theme observer
+    if (this._themeObserver) {
+      this._themeObserver.disconnect();
+      this._themeObserver = null;
+    }
     this._iframe.src = "";
     super.dispose();
   }
@@ -208,19 +311,32 @@ class MarimoEditorFactory extends ABCWidgetFactory<
     const content = new MarimoEditorWidget(context);
     const widget = new DocumentWidget({ content, context });
     widget.addClass("marimo-document-widget");
-    widget.title.icon = pythonIcon;
+    widget.title.icon = marimoIcon;
     return widget;
   }
 }
 
 /**
- * The Marimo file type.
+ * The Marimo file type for .mo.py files.
  */
 const marimoFileType: Partial<DocumentRegistry.IFileType> = {
   name: "marimo",
   displayName: "Marimo Notebook",
   mimeTypes: [MARIMO_MIME_TYPE],
   extensions: [MARIMO_FILE_EXTENSION],
+  fileFormat: "text",
+  contentType: "file",
+  icon: marimoIcon,
+};
+
+/**
+ * The Python file type for opening .py files in Marimo (non-default).
+ */
+const pythonMarimoFileType: Partial<DocumentRegistry.IFileType> = {
+  name: "python-marimo",
+  displayName: "Python (Marimo)",
+  mimeTypes: [MARIMO_MIME_TYPE],
+  extensions: [PYTHON_FILE_EXTENSION],
   fileFormat: "text",
   contentType: "file",
   icon: pythonIcon,
@@ -240,13 +356,18 @@ const plugin: JupyterFrontEndPlugin<void> = {
 
     const { docRegistry } = app;
 
-    // Add the Marimo file type
+    // Add the Marimo file type for .mo.py files
     docRegistry.addFileType(marimoFileType as DocumentRegistry.IFileType);
 
+    // Add the Python-Marimo file type for .py files (non-default, appears in "Open With")
+    docRegistry.addFileType(pythonMarimoFileType as DocumentRegistry.IFileType);
+
     // Create and register the widget factory
+    // - fileTypes: includes both marimo (.mo.py) and python-marimo (.py)
+    // - defaultFor: only marimo, so .py files use standard editor by default
     const factory = new MarimoEditorFactory({
       name: "Marimo Editor",
-      fileTypes: ["marimo"],
+      fileTypes: ["marimo", "python-marimo"],
       defaultFor: ["marimo"],
       readOnly: false,
     });
@@ -254,13 +375,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // Register the factory
     docRegistry.addWidgetFactory(factory);
 
-    console.log("Marimo editor factory registered for .mo.py files");
+    console.log("Marimo editor factory registered for .mo.py and .py files");
 
     // Optional: Add a command to open files in Marimo
     app.commands.addCommand("marimo:open", {
       label: "Open in Marimo",
       caption: "Open the current file in Marimo editor",
-      icon: pythonIcon,
+      icon: marimoIcon,
       execute: (args) => {
         let path = args["path"] as string | undefined;
 
@@ -275,7 +396,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
           }
         }
 
-        if (path && path.endsWith(MARIMO_FILE_EXTENSION)) {
+        // Allow both .mo.py and .py files to be opened in Marimo
+        if (
+          path &&
+          (path.endsWith(MARIMO_FILE_EXTENSION) ||
+            path.endsWith(PYTHON_FILE_EXTENSION))
+        ) {
           console.log(`Opening ${path} in Marimo editor`);
           app.commands.execute("docmanager:open", {
             path,
@@ -291,6 +417,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
     app.contextMenu.addItem({
       command: "marimo:open",
       selector: '.jp-DirListing-item[data-file-type="marimo"]',
+      rank: 0,
+    });
+
+    // Add context menu item for .py files
+    app.contextMenu.addItem({
+      command: "marimo:open",
+      selector: '.jp-DirListing-item[data-file-type="python-marimo"]',
       rank: 0,
     });
 
