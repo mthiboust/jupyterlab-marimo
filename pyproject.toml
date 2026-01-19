@@ -38,6 +38,9 @@ dev = [
 [project.entry-points.jupyter_serverproxy_servers]
 marimo = "jupyterlab_marimo:setup_marimoserver"
 
+[project.entry-points."jupyter_server.serverextension"]
+jupyterlab_marimo = "jupyterlab_marimo"
+
 [tool.hatch.version]
 source = "nodejs"
 
