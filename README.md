@@ -1,5 +1,11 @@
 # JupyterLab Marimo Extension
 
+> [!WARNING]
+> **This extension is legacy and no longer actively maintained.**
+>
+> An official Marimo Jupyter extension is now available at **https://github.com/marimo-team/marimo-jupyter-extension**.
+> We recommend using the official extension instead.
+
 A JupyterLab extension that automatically opens Marimo notebooks in the Marimo editor instead of the default text editor or notebook interface.
 
 ![JupyterLab Marimo Extension](docs/jupyterlab_marimo.png)
@@ -41,51 +47,6 @@ jupyter lab
 
 The extension will be automatically enabled!
 
-### Development Installation
-
-1. **Clone or create the extension directory**:
-   ```bash
-   cd marimo-jupyterlab-extension
-   ```
-
-2. **Install Python dependencies**:
-   ```bash
-   uv sync --extra dev
-   ```
-
-3. **Install JavaScript dependencies**:
-   ```bash
-   uv run jlpm install
-   ```
-
-4. **Build the extension**:
-   ```bash
-   uv run jlpm build
-   ```
-
-5. **Install the extension in development mode**:
-   ```bash
-   uv run jupyter labextension develop . --overwrite
-   ```
-
-6. **Start JupyterLab**:
-   ```bash
-   jupyter lab
-   ```
-
-### Watch Mode (for Development)
-
-To automatically rebuild the extension when you make changes:
-
-```bash
-uv run jlpm watch
-```
-
-In another terminal, run JupyterLab with watch mode:
-
-```bash
-jupyter lab --watch
-```
 
 ## Usage
 
@@ -183,75 +144,6 @@ If you installed in development mode:
 ```bash
 jupyter labextension develop --uninstall .
 ```
-
-## Development
-
-### Project Structure
-
-```
-marimo-jupyterlab-extension/
-├── package.json          # Node.js dependencies and scripts
-├── tsconfig.json         # TypeScript configuration
-├── src/
-│   └── index.ts         # Main extension code
-├── style/
-│   ├── index.css        # Extension styles
-│   └── index.js         # Style module entry
-└── README.md            # This file
-```
-
-### Key Files
-
-- **src/index.ts**: Contains the main plugin logic, including:
-  - `MarimoEditorWidget`: The widget that embeds the Marimo editor
-  - `MarimoEditorFactory`: Factory for creating Marimo editor widgets
-  - Plugin registration and activation
-
-- **style/index.css**: Styles for the Marimo editor widget
-
-### Building
-
-```bash
-# Build the extension
-uv run jlpm build
-
-# Build for production (no source maps)
-uv run jlpm build:prod
-
-# Clean build artifacts
-uv run jlpm clean
-```
-
-## Publishing (for Maintainers)
-
-To publish a new version to PyPI:
-
-1. **Update version** in `package.json`:
-   ```json
-   {
-     "version": "0.2.0"
-   }
-   ```
-
-2. **Clean and build**:
-   ```bash
-   uv run jlpm clean:all
-   rm -rf dist build *.egg-info
-   uv build
-   ```
-
-3. **Publish to PyPI**:
-   ```bash
-   uv publish
-   ```
-
-That's it! The Python package includes everything (JavaScript, labextension, dependencies). Users only need to `pip install jupyterlab-marimo`.
-
-Note: The JavaScript/labextension is automatically built and bundled into the Python package via the `hatch-jupyter-builder` hooks in `pyproject.toml`. No npm account needed!
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## License
 
