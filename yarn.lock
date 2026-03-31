@@ -325,7 +325,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@jupyterlab/docmanager@npm:^4.5.2":
+"@jupyterlab/docmanager@npm:^4.0.0, @jupyterlab/docmanager@npm:^4.5.2":
   version: 4.5.2
   resolution: "@jupyterlab/docmanager@npm:4.5.2"
   dependencies:
@@ -403,6 +403,24 @@ __metadata:
     jest-environment-jsdom: ^29.3.0
     react: ^18.2.0
   checksum: 557999ae31c4ef56c2b98ea63d0316cf354759dd2759b82c218a3869ac09577561dedc501712cd4ed8520eed0443822f8e1cb8ede12b20e8e8562bbeacd2c451
+  languageName: node
+  linkType: hard
+
+"@jupyterlab/launcher@npm:^4.0.0":
+  version: 4.5.2
+  resolution: "@jupyterlab/launcher@npm:4.5.2"
+  dependencies:
+    "@jupyterlab/apputils": ^4.6.2
+    "@jupyterlab/translation": ^4.5.2
+    "@jupyterlab/ui-components": ^4.5.2
+    "@lumino/algorithm": ^2.0.4
+    "@lumino/commands": ^2.3.3
+    "@lumino/coreutils": ^2.2.2
+    "@lumino/disposable": ^2.1.5
+    "@lumino/properties": ^2.0.4
+    "@lumino/widgets": ^2.7.2
+    react: ^18.2.0
+  checksum: 2f643d9ffbcc35dfed26e2eef40f46b0f77800fd854d3f9d11e6cae1ef950bbbafafb4ae835a3562f05422585d499eb1f1da958b90a91a351a4881fbffc430c4
   languageName: node
   linkType: hard
 
@@ -3161,8 +3179,10 @@ __metadata:
     "@jupyterlab/application": ^4.0.0
     "@jupyterlab/apputils": ^4.0.0
     "@jupyterlab/builder": ^4.0.0
+    "@jupyterlab/docmanager": ^4.0.0
     "@jupyterlab/docregistry": ^4.0.0
     "@jupyterlab/filebrowser": ^4.0.0
+    "@jupyterlab/launcher": ^4.0.0
     "@jupyterlab/services": ^7.0.0
     "@jupyterlab/ui-components": ^4.0.0
     "@lumino/messaging": ^2.0.0
